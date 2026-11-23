@@ -2,6 +2,9 @@ import mysql from "mysql"
 import express from "express"
 import jwt from "jsonwebtoken" 
 import bcrypt from "bcryptjs"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 const app = express()
 
@@ -10,10 +13,10 @@ app.use(express.json())
 
 // db connection
 const db = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "school_db"
+    host: process.env.HOST,
+    user: process.env.USER,
+    password: process.env.PASSWORD,
+    database: process.env.DATABASE
 })
 
 db.connect((err)=>{
@@ -89,7 +92,7 @@ app.post('/api/auth/login',(req,res)=>{
             email: results[0].email,
             role: results[0].role
         },'mySecretKey',{expiresIn: '1h'})
-        
+
         return res.status(200).json(
             {message: 'login successful', token})
     })
@@ -128,6 +131,7 @@ app.put("/api/users/:id",(req,res)=>{
 })
 
 
-app.listen(5000,()=>{
-    console.log("server is running on port 5000")
+app.listen(process.env.PORTNUMBER,()=>{
+    console.log("server is running on port " +
+         process.env.PORTNUMBER)
 })
