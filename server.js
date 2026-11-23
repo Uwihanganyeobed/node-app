@@ -1,5 +1,8 @@
 import mysql from "mysql"
 import express from "express"
+import jwt from "jsonwebtoken" 
+import bcrypt from "bcryptjs"
+
 const app = express()
 
 app.use(express.json())
@@ -10,7 +13,7 @@ const db = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "l4sod"
+    database: "school_db"
 })
 
 db.connect((err)=>{
@@ -38,19 +41,63 @@ app.get('/api/users',(req,res)=>{
 })
 
 
-// POST insert data in db
-app.post('/api/users',(req,res)=>{
-    const {name,age,gender} = req.body;
-    const myQuery=
-    'INSERT INTO users(name,age,gender) VALUES(?,?,?)'
-    db.query(myQuery,[name,age,gender],(error,results)=>{
-        if(error){
-            return res.status(500).json({error: error})
+
+
+
+// POST  register user
+app.post('/api/auth/register',(req,res)=>{
+   const {username,email,password,role} = req.body;
+   //check if user is in db
+   const checkEmailSql = 'SELECT * FROM users WHERE email = ?'
+   db.query(checkEmailSql,[email],async(error,results)=>{
+    if(error){
+        return res.status(500).json({error:
+             'user already exists', error})
+    }
+        const hashedPassword = await bcrypt.hash(password,10);
+
+        const myQuery=
+        'INSERT INTO users (username,email,password,role) VALUES (?,?,?,?)'
+        db.query(myQuery,[username,email,hashedPassword,role],
+            (error,results)=>{
+            if(error){
+                return res.status(500).json({error: error})
+            }
+            return res.status(201).json({
+                message: 'user registered successfully', results})
+        })
+   })
+})
+
+// LOGIN
+app.post('/api/auth/login',(req,res)=>{
+    const {email,password} = req.body;
+    // 1. check if user is in db
+    const checkUserSql = 'SELECT * FROM users WHERE email = ?'
+    db.query(checkUserSql,[email],async(error,results)=>{
+        if(results.length === 0){
+            return res.status(404).json({error: 'user not found'})
         }
-        return res.status(200).json({message: 'data inserted',
-             results})
+    // 2. check if password is correct
+        const matchedPassword = await bcrypt.compare(password,results[0].password)
+        if(!matchedPassword){
+            return res.status(401).json({error: 'invalid password'})
+        }
+    //3 generate token and send to user
+        const token = await jwt.sign({
+            id: results[0].id,
+            email: results[0].email,
+            role: results[0].role
+        },'mySecretKey',{expiresIn: '1h'})
+        
+        return res.status(200).json(
+            {message: 'login successful', token})
     })
 })
+
+
+
+
 
 app.get('/api/users/:id',(req,res)=>{
     const id = req.params.id
